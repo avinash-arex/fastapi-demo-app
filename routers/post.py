@@ -3,16 +3,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from models import Post, RequiredUpdate,ResponsePost,ResponseById
+from models import Post, RequiredUpdate, ResponsePost, ResponseById
 from database import get_db
 import db_models
+from routers.auth import get_current_user
 
 router = APIRouter(tags=["Post's"])
 
 
 # 1. Get all posts
-@router.get("/posts",response_model=List[ResponsePost])
-def get_posts(db: Session = Depends(get_db)):
+@router.get("/posts", response_model=List[ResponsePost])
+def get_posts(db: Session = Depends(get_db), current_user: db_models.dbUser = Depends(get_current_user)):
     posts = db.query(db_models.dbPost).order_by(db_models.dbPost.id).all()
     return posts
 
