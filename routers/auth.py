@@ -1,17 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from database import get_db
-import db_models
-from util import verify_password
-from Oauth2 import create_jwt_token, oauth2_scheme, verify_access_token
+from database.database import get_db
+from models.models import dbUser
+from core.security import verify_password
+from core.Oauth2 import create_jwt_token, oauth2_scheme, verify_access_token
 
 router = APIRouter(tags=["Authentication"])
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(
+        token: str = Depends(oauth2_scheme),
+        db: Session = Depends(get_db)
+):
     token_data = verify_access_token(token)
-    user = db.query(db_models.dbUser).filter(db_models.dbUser.id == token_data["user_id"]).first()
+    user = db.query(dbUser).filter(dbUser.id == token_data["user_id"]).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -22,11 +25,24 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 @router.post("/login")
-def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(db_models.dbUser).filter(db_models.dbUser.email == user_credentials.username).first()
+def login(
+    user_credentials: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    user = (
+        db.query(dbUser)
+        .filter(dbUser.email == user_credentials.username)
+        .first()
+    )
 
-    if user is None or not verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if user is None or not verify_password(
+                                    user_credentials.password,
+                                    str(user.password)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+            )
 
     jwt_token = create_jwt_token(
         data={
@@ -34,7 +50,6 @@ def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session =
             "user_email": user.email
         }
     )
-    return {"access_token": jwt_token, "token_type": "bearer"}
-
-
-
+    return {"access_token": jwt_token,
+            "token_type": "bearer"
+            }
